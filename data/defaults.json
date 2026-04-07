@@ -1,0 +1,49 @@
+{
+  "_comment": "Default values for AdaptStance. All lengths in mm, angles in degrees.",
+
+  "triangle": {
+    "seat": { "x": 0,   "y": 0    },
+    "hb":   { "x": 300, "y": 200  },
+    "fp":   { "x": 50,  "y": -450 }
+  },
+
+  "body": {
+    "forearm":  270,
+    "upperarm": 310,
+    "torso":    550,
+    "thigh":    420,
+    "lowerleg": 410,
+    "foot":     250,
+    "hand":     80
+  },
+
+  "ranges": {
+    "cruiser": {
+      "back":     { "min": 10,  "max": 25  },
+      "knee":     { "min": 85,  "max": 115 },
+      "ankle":    { "min": 80,  "max": 100 },
+      "shoulder": { "min": 20,  "max": 45  },
+      "elbow":    { "min": 130, "max": 165 },
+      "wrist":    { "min": 155, "max": 180 }
+    },
+    "sport": {
+      "back":     { "min": 35,  "max": 60  },
+      "knee":     { "min": 60,  "max": 90  },
+      "ankle":    { "min": 75,  "max": 100 },
+      "shoulder": { "min": 45,  "max": 75  },
+      "elbow":    { "min": 95,  "max": 130 },
+      "wrist":    { "min": 135, "max": 165 }
+    }
+  },
+
+  "references": {
+    "source": "Ergonomic references based on SAE J1516, EN ISO 15534-1, and motorcycle-specific ergonomics literature.",
+    "notes": [
+      "Back angle is measured from vertical (0° = fully upright).",
+      "All other joint angles are interior (included) angles at the joint.",
+      "Segment lengths represent the 50th-percentile adult; scale proportionally for other percentiles.",
+      "Cruiser typical: upright torso, feet forward, high bars.",
+      "Sport typical: forward lean 35–60°, knees tucked, low/forward bars."
+    ]
+  }
+}
