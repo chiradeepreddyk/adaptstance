@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdaptStance — Adaptive Motorcycle Posture Analyzer</title>
+  <style>
+    /* ── reset & base ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0f1117;
+      color: #dde2ec;
+      min-height: 100vh;
+      font-size: 14px;
+    }
+    strong { font-weight: 600; }
+    code   { font-family: monospace; background: #252b3b; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+
+    /* ── header ────────────────────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #141926 0%, #1e2535 100%);
+      border-bottom: 1px solid #2a3040;
+      padding: 18px 36px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .logo { font-size: 1.75rem; font-weight: 800; color: #ff6b00; letter-spacing: -0.5px; }
+    .logo span { color: #ff9a44; }
+    .tagline { color: #6677aa; font-size: 0.85rem; margin-top: 2px; }
+
+    /* ── tabs ──────────────────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      background: #141926;
+      border-bottom: 1px solid #2a3040;
+      padding: 0 36px;
+    }
+    .tab-btn {
+      background: none; border: none; cursor: pointer;
+      padding: 13px 22px;
+      color: #6677aa; font-size: 0.88rem;
+      border-bottom: 2px solid transparent;
+      transition: color 0.18s, border-color 0.18s;
+    }
+    .tab-btn:hover  { color: #ccd2e8; }
+    .tab-btn.active { color: #ff6b00; border-bottom-color: #ff6b00; font-weight: 600; }
+
+    /* ── layout ────────────────────────────────────────────────────────────── */
+    .content   { padding: 26px 36px; max-width: 1440px; margin: 0 auto; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── card ──────────────────────────────────────────────────────────────── */
+    .card {
+      background: #161c2a;
+      border: 1px solid #252f45;
+      border-radius: 10px;
+      padding: 20px 22px;
+      margin-bottom: 18px;
+    }
+    .card-title {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: #ff6b00;
+      margin-bottom: 14px; padding-bottom: 8px;
+      border-bottom: 1px solid #252f45;
+    }
+
+    /* ── form elements ─────────────────────────────────────────────────────── */
+    .field-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .field       { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 0.77rem; color: #7788aa; }
+    .hint        { font-size: 0.71rem; color: #444d65; margin-top: 2px; }
+    input[type="number"] {
+      background: #1e2535; border: 1px solid #2e3a52;
+      border-radius: 6px; padding: 7px 10px;
+      color: #dde2ec; font-size: 0.88rem; width: 100%;
+      outline: none; transition: border-color 0.18s;
+    }
+    input[type="number"]:focus { border-color: #ff6b00; }
+
+    /* ── range rows (angle table in inputs) ────────────────────────────────── */
+    .range-header,
+    .range-row {
+      display: grid;
+      grid-template-columns: 130px 1fr 1fr 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 7px;
+    }
+    .range-header { font-size: 0.7rem; color: #445; margin-bottom: 5px; }
+    .range-row input { font-size: 0.8rem; padding: 5px 7px; }
+    .joint-name { font-size: 0.82rem; color: #99aac0; }
+
+    /* ── section sub-label ─────────────────────────────────────────────────── */
+    .sub-label {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;
+      color: #445566; margin: 12px 0 7px;
+      padding-bottom: 4px; border-bottom: 1px solid #1e2535;
+    }
+
+    /* ── buttons ───────────────────────────────────────────────────────────── */
+    .btn-primary {
+      background: linear-gradient(135deg, #ff6b00, #e04500);
+      border: none; color: #fff;
+      padding: 11px 30px; border-radius: 8px;
+      font-size: 0.95rem; font-weight: 700; cursor: pointer;
+      transition: opacity 0.18s; letter-spacing: 0.3px;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-secondary {
+      background: #1e2535; border: 1px solid #2e3a52; color: #99aac0;
+      padding: 10px 20px; border-radius: 8px;
+      font-size: 0.85rem; cursor: pointer; margin-left: 10px;
+    }
+    .btn-secondary:hover { color: #dde2ec; border-color: #445; }
+
+    /* ── 3-col inputs grid ─────────────────────────────────────────────────── */
+    .inputs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+
+    /* ── results grid ──────────────────────────────────────────────────────── */
+    .diagrams-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+      margin-bottom: 18px;
+    }
+    .diagram-wrap {
+      background: #1e2535; border-radius: 8px;
+      padding: 10px 10px 6px;
+    }
+    .diagram-mode-label {
+      text-align: center; font-size: 0.72rem;
+      font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; margin-bottom: 6px;
+    }
+    .lbl-cruiser { color: #4ec9b0; }
+    .lbl-sport   { color: #ff6b00; }
+    .lbl-current { color: #8899ff; }
+    .moto-note   { text-align:center; font-size:0.7rem; color:#445; margin-top:4px; }
+
+    /* ── current posture grid ──────────────────────────────────────────────── */
+    .current-grid { display: grid; grid-template-columns: 380px 1fr; gap: 18px; }
+
+    /* ── angle table ───────────────────────────────────────────────────────── */
+    table  { width:100%; border-collapse:collapse; }
+    th, td { padding: 9px 13px; border-bottom: 1px solid #1e2535; text-align:left; }
+    th     { font-size:0.7rem; color:#556; text-transform:uppercase; letter-spacing:.8px; font-weight:600; }
+    td     { font-size: 0.84rem; }
+    tr:last-child td { border-bottom: none; }
+
+    /* ── badges ────────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block; padding: 2px 9px; border-radius: 10px;
+      font-size: 0.72rem; font-weight: 700;
+    }
+    .badge-ok   { background: #192e22; color: #4caf50; }
+    .badge-warn { background: #2e2010; color: #ff9800; }
+    .badge-fail { background: #2e1818; color: #f44336; }
+
+    /* ── alert bar ─────────────────────────────────────────────────────────── */
+    .alert {
+      padding: 11px 16px; border-radius: 8px;
+      font-size: 0.83rem; margin-bottom: 18px;
+    }
+    .alert-info {
+      background: #141e30; border: 1px solid #1e3a5a; color: #5599dd;
+    }
+
+    /* ── analysis text block ───────────────────────────────────────────────── */
+    #analysis-text { font-size:0.85rem; line-height:1.75; }
+    #analysis-text p { margin-bottom: 8px; }
+
+    /* ── recommendations ───────────────────────────────────────────────────── */
+    #recommendations { font-size:0.84rem; line-height:1.75; }
+
+    /* ── about text ────────────────────────────────────────────────────────── */
+    .about-text { font-size:0.88rem; line-height:1.8; color:#bbc8d8; }
+    .about-text p { margin-bottom:14px; }
+    .about-text h3 { color:#ff6b00; margin: 18px 0 6px; font-size:0.88rem; text-transform:uppercase; letter-spacing:.8px; }
+
+    /* ── responsive ────────────────────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      .inputs-grid   { grid-template-columns: 1fr; }
+      .diagrams-grid { grid-template-columns: 1fr; }
+      .current-grid  { grid-template-columns: 1fr; }
+      .content { padding: 16px; }
+      header   { padding: 14px 16px; }
+      .tabs    { padding: 0 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- HEADER                                                                     -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<header>
+  <div>
+    <div class="logo">⚡ Adapt<span>Stance</span></div>
+    <div class="tagline">Adaptive Motorcycle Posture Analyzer &mdash; Cruiser &harr; Sport</div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB BAR                                                                    -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="inputs">① Inputs</button>
+  <button class="tab-btn" data-tab="results">② Analysis &amp; Results</button>
+  <button class="tab-btn" data-tab="about">ℹ About</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- CONTENT                                                                    -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="content">
+
+  <!-- ────────────────────────────────────── INPUTS TAB ──────────────────── -->
+  <div id="tab-inputs" class="tab-panel active">
+
+    <div class="alert alert-info">
+      All dimensions in <strong>millimetres (mm)</strong>.
+      Rider-triangle coordinates are relative to the
+      <strong>seat / hip reference point (0, 0)</strong>.
+      X = forward (+) / backward (&minus;) &nbsp;|&nbsp; Y = up (+) / down (&minus;).
+    </div>
+
+    <div class="inputs-grid">
+
+      <!-- ── Card 1: Rider Triangle ──────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-title">🏍 Rider Triangle — Hardpoints</div>
+
+        <div class="sub-label">Handlebar Grip Position</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Handlebar X (mm)</label>
+            <input type="number" id="hb_x" value="300" step="5">
+            <span class="hint">+ = forward of seat</span>
+          </div>
+          <div class="field">
+            <label>Handlebar Y (mm)</label>
+            <input type="number" id="hb_y" value="200" step="5">
+            <span class="hint">+ = above seat level</span>
+          </div>
+        </div>
+
+        <div class="sub-label">Footpeg Position</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Footpeg X (mm)</label>
+            <input type="number" id="fp_x" value="50" step="5">
+            <span class="hint">+ = forward of seat</span>
+          </div>
+          <div class="field">
+            <label>Footpeg Y (mm)</label>
+            <input type="number" id="fp_y" value="-450" step="5">
+            <span class="hint">&minus; = below seat</span>
+          </div>
+        </div>
+
+        <p class="hint" style="margin-top:8px">
+          Seat is fixed at (0, 0) — this is the hip-joint reference.
+        </p>
+      </div>
+
+      <!-- ── Card 2: Body Measurements ───────────────────────────────────── -->
+      <div class="card">
+        <div class="card-title">👤 Body Segment Lengths</div>
+
+        <div class="sub-label">Upper Body</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Forearm (mm)</label>
+            <input type="number" id="L_forearm"  value="270" step="5">
+          </div>
+          <div class="field">
+            <label>Upper Arm (mm)</label>
+            <input type="number" id="L_upperarm" value="310" step="5">
+          </div>
+          <div class="field">
+            <label>Torso — Hip to Shoulder (mm)</label>
+            <input type="number" id="L_torso"    value="550" step="5">
+          </div>
+          <div class="field">
+            <label>Hand / Wrist-to-Grip (mm)</label>
+            <input type="number" id="L_hand"     value="80"  step="5">
+          </div>
+        </div>
+
+        <div class="sub-label">Lower Body</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Thigh / Upper Leg (mm)</label>
+            <input type="number" id="L_thigh"    value="420" step="5">
+          </div>
+          <div class="field">
+            <label>Lower Leg / Shin (mm)</label>
+            <input type="number" id="L_lowerleg" value="410" step="5">
+          </div>
+          <div class="field">
+            <label>Foot Length (mm)</label>
+            <input type="number" id="L_foot"     value="250" step="5">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Card 3: Joint Angle Ranges ──────────────────────────────────── -->
+      <div class="card">
+        <div class="card-title">📐 Joint Angle Ranges (degrees)</div>
+
+        <div class="range-header">
+          <span></span>
+          <span style="color:#4ec9b0">Cruiser Min</span>
+          <span style="color:#4ec9b0">Cruiser Max</span>
+          <span style="color:#ff6b00">Sport Min</span>
+          <span style="color:#ff6b00">Sport Max</span>
+        </div>
+
+        <div class="range-row">
+          <span class="joint-name">Back (from vert.)</span>
+          <input type="number" id="cr_back_min"     value="10">
+          <input type="number" id="cr_back_max"     value="25">
+          <input type="number" id="sp_back_min"     value="35">
+          <input type="number" id="sp_back_max"     value="60">
+        </div>
+        <div class="range-row">
+          <span class="joint-name">Knee</span>
+          <input type="number" id="cr_knee_min"     value="85">
+          <input type="number" id="cr_knee_max"     value="115">
+          <input type="number" id="sp_knee_min"     value="60">
+          <input type="number" id="sp_knee_max"     value="90">
+        </div>
+        <div class="range-row">
+          <span class="joint-name">Ankle</span>
+          <input type="number" id="cr_ankle_min"    value="80">
+          <input type="number" id="cr_ankle_max"    value="100">
+          <input type="number" id="sp_ankle_min"    value="75">
+          <input type="number" id="sp_ankle_max"    value="100">
+        </div>
+        <div class="range-row">
+          <span class="joint-name">Shoulder</span>
+          <input type="number" id="cr_shoulder_min" value="20">
+          <input type="number" id="cr_shoulder_max" value="45">
+          <input type="number" id="sp_shoulder_min" value="45">
+          <input type="number" id="sp_shoulder_max" value="75">
+        </div>
+        <div class="range-row">
+          <span class="joint-name">Elbow</span>
+          <input type="number" id="cr_elbow_min"    value="130">
+          <input type="number" id="cr_elbow_max"    value="165">
+          <input type="number" id="sp_elbow_min"    value="95">
+          <input type="number" id="sp_elbow_max"    value="130">
+        </div>
+        <div class="range-row">
+          <span class="joint-name">Wrist</span>
+          <input type="number" id="cr_wrist_min"    value="155">
+          <input type="number" id="cr_wrist_max"    value="180">
+          <input type="number" id="sp_wrist_min"    value="135">
+          <input type="number" id="sp_wrist_max"    value="165">
+        </div>
+
+        <p class="hint" style="margin-top:10px">
+          All angles are interior (included) joint angles except Back,
+          which is measured from vertical (0° = bolt upright).
+        </p>
+      </div>
+
+    </div><!-- /inputs-grid -->
+
+    <div style="text-align:center; margin-top:8px;">
+      <button class="btn-primary"   onclick="analyze()">▶ Analyze Posture</button>
+      <button class="btn-secondary" onclick="loadDefaults()">↺ Reset Defaults</button>
+    </div>
+
+  </div><!-- /tab-inputs -->
+
+  <!-- ────────────────────────────────────── RESULTS TAB ─────────────────── -->
+  <div id="tab-results" class="tab-panel">
+
+    <div id="results-placeholder" style="text-align:center;padding:70px 0;color:#445;">
+      Enter your parameters on the <strong style="color:#ff6b00">Inputs</strong> tab and click
+      <strong style="color:#ff6b00">▶ Analyze Posture</strong>.
+    </div>
+
+    <div id="results-content" style="display:none">
+
+      <!-- Side-by-side ideal postures -->
+      <div class="diagrams-grid">
+        <div class="card" style="padding:14px">
+          <div class="diagram-mode-label lbl-cruiser">🏖 Cruiser Mode — Ideal Posture</div>
+          <div class="diagram-wrap">
+            <svg id="svg-cruiser" width="100%" viewBox="0 0 380 460"
+                 style="background:#0f1117;border-radius:6px;display:block"></svg>
+          </div>
+        </div>
+        <div class="card" style="padding:14px">
+          <div class="diagram-mode-label lbl-sport">🏁 Sport Mode — Ideal Posture</div>
+          <div class="diagram-wrap">
+            <svg id="svg-sport" width="100%" viewBox="0 0 380 460"
+                 style="background:#0f1117;border-radius:6px;display:block"></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current geometry -->
+      <div class="card">
+        <div class="card-title">🔍 Current Geometry — Computed Posture</div>
+        <div class="current-grid">
+          <div>
+            <div class="diagram-mode-label lbl-current">Computed from Your Rider Triangle</div>
+            <div class="diagram-wrap">
+              <svg id="svg-current" width="100%" viewBox="0 0 380 460"
+                   style="background:#0f1117;border-radius:6px;display:block"></svg>
+            </div>
+            <p class="moto-note">Joint angle labels shown at each hardpoint.</p>
+          </div>
+          <div id="analysis-text"></div>
+        </div>
+      </div>
+
+      <!-- Angle comparison table -->
+      <div class="card">
+        <div class="card-title">📊 Joint Angle Comparison</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Joint</th>
+              <th>Computed</th>
+              <th>Cruiser Range</th>
+              <th>Sport Range</th>
+              <th>Cruiser</th>
+              <th>Sport</th>
+            </tr>
+          </thead>
+          <tbody id="angle-table-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Recommendations -->
+      <div class="card">
+        <div class="card-title">🔧 Adjustment Recommendations</div>
+        <div id="recommendations"></div>
+      </div>
+
+    </div><!-- /results-content -->
+  </div><!-- /tab-results -->
+
+  <!-- ────────────────────────────────────── ABOUT TAB ───────────────────── -->
+  <div id="tab-about" class="tab-panel">
+    <div class="card">
+      <div class="card-title">About AdaptStance</div>
+      <div class="about-text">
+
+        <h3>What is AdaptStance?</h3>
+        <p>
+          AdaptStance is a browser-based biomechanical analysis tool for adaptive-stance
+          motorcycles that can shift between <strong>Cruiser</strong> and <strong>Sport</strong>
+          riding postures by actuating the handlebar, seat, and/or footpeg positions.
+        </p>
+
+        <h3>The Rider Triangle</h3>
+        <p>
+          The three key hardpoints — handlebar grip, seat (hip), and footpeg — form the
+          <em>rider triangle</em>. All joint positions are derived from these three points
+          together with the rider's body segment lengths.
+        </p>
+
+        <h3>Biomechanical Model</h3>
+        <p>
+          A 2-D sagittal-plane (side-view) model is used.
+          The <strong>lower body</strong> (hip → knee → ankle) and
+          <strong>upper body</strong> (shoulder → elbow → wrist) are each solved as
+          two-link inverse-kinematics (IK) chains.
+          Torso lean angle is estimated by finding the back angle at which the arms
+          achieve approximately 75 % of maximum reach — a natural, non-fatiguing posture.
+        </p>
+
+        <h3>Joints Modelled</h3>
+        <p>
+          Wrist · Elbow · Shoulder · Back (torso lean) · Knee · Ankle.
+          Each joint has a configurable target range for Cruiser and Sport modes.
+          The default ranges are informed by SAE J1516, ISO 15534-1, and published
+          motorcycle ergonomics research.
+        </p>
+
+        <h3>Repository Structure</h3>
+        <p>
+          <code>index.html</code> — standalone web application (this file)<br>
+          <code>src/biomechanics.js</code> — IK solver and angle calculations<br>
+          <code>src/renderer.js</code> — SVG stick-figure renderer<br>
+          <code>src/ui.js</code> — tab navigation, form helpers, results display<br>
+          <code>data/defaults.json</code> — default body measurements and angle ranges<br>
+          <code>tests/</code> — unit tests (Node.js / Jest)
+        </p>
+
+        <h3>Deploying to GitHub Pages</h3>
+        <p>
+          Push the repository to GitHub, then go to
+          <em>Settings → Pages → Source: main branch / root</em>.
+          The site will be live at
+          <code>https://&lt;username&gt;.github.io/&lt;repo&gt;/</code>.
+        </p>
+
+      </div>
+    </div>
+  </div><!-- /tab-about -->
+
+</div><!-- /content -->
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- SCRIPTS — load in dependency order                                         -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<script src="src/biomechanics.js"></script>
+<script src="src/renderer.js"></script>
+<script src="src/ui.js"></script>
+
+</body>
+</html>
